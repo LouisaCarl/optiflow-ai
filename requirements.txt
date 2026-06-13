@@ -8,3 +8,5 @@ folium
 vidgear
 scikit-learn
 yt-dlp
+libgl1
+libglib2.0-0
