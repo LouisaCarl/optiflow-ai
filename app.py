@@ -1,3 +1,7 @@
+import os
+# Tambahkan baris ini untuk menonaktifkan pencarian display grafis yang memicu error libGL
+os.environ["QT_QPA_PLATFORM"] = "offscreen" 
+
 import streamlit as st
 import streamlit.components.v1 as components
 import cv2
