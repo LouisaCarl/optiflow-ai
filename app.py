@@ -92,7 +92,7 @@ BOBOT_SMP = {2: 1.0, 3: 0.5, 5: 2.5, 7: 2.5}
 
 # --- DATABASE CCTV JOGJAKARTA (M3U8 HLS DIRECT STREAM) ---
 DATABASE_CCTV = {
-    "SIMPANG KM NOL (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8streamlit",
+    "SIMPANG KM NOL (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8",
     "SIMPANG WIROBRAJAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_wirobrajan.stream/playlist.m3u8",
     "SIMPANG SERANGAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_serangan.stream/playlist.m3u8",
     "SIMPANG GONDOMANAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_gondomanan.stream/playlist.m3u8",
