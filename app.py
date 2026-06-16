@@ -1,5 +1,5 @@
 import os
-# Tambahkan baris ini untuk menonaktifkan pencarian display grafis yang memicu error libGL
+# Mencegah error libGL di Streamlit Cloud
 os.environ["QT_QPA_PLATFORM"] = "offscreen" 
 
 import streamlit as st
@@ -11,17 +11,17 @@ import pandas as pd
 import numpy as np
 import plotly.express as px
 import json
-import os
 import folium
+import requests
+from urllib.parse import urljoin
 from ultralytics import YOLO
-from vidgear.gears import CamGear
 from sklearn.ensemble import RandomForestRegressor
 
 # --- KONFIGURASI HALAMAN ---
 st.set_page_config(page_title="OptiFlow AI Engine", layout="wide", initial_sidebar_state="expanded")
 
 # ==========================================
-# ADVANCED CSS INJECTION (ORQ.AI / GEMINI THEME)
+# ADVANCED CSS INJECTION 
 # ==========================================
 custom_css = """
 <style>
@@ -29,13 +29,11 @@ custom_css = """
 
     html, body, [class*="css"] { font-family: 'Inter', sans-serif; }
     
-    /* Background & Global Text */
     .stApp {
         background: radial-gradient(circle at 50% 0%, #151924 0%, #090b10 100%);
         color: #e6edf3;
     }
 
-    /* Elegant Titles */
     .hero-title {
         background: linear-gradient(135deg, #a8c0ff 0%, #3f2b96 100%);
         -webkit-background-clip: text;
@@ -44,58 +42,30 @@ custom_css = """
         font-weight: 800;
         letter-spacing: -1.5px;
         margin-bottom: 0.2rem;
-        animation: fadeIn 1s ease-out;
     }
-    .hero-subtitle {
-        color: #8b949e; font-weight: 400; font-size: 1.1rem; margin-bottom: 2rem;
-    }
+    .hero-subtitle { color: #8b949e; font-weight: 400; font-size: 1.1rem; margin-bottom: 2rem; }
 
-    /* Custom Metric Cards (Glassmorphism) */
     .glass-card {
         background: rgba(255, 255, 255, 0.02);
         border: 1px solid rgba(255, 255, 255, 0.05);
         border-radius: 16px;
         padding: 20px;
         backdrop-filter: blur(10px);
-        -webkit-backdrop-filter: blur(10px);
         box-shadow: 0 4px 20px rgba(0, 0, 0, 0.2);
-        transition: transform 0.3s ease, box-shadow 0.3s ease, border 0.3s ease;
     }
-    .glass-card:hover {
-        transform: translateY(-5px);
-        border: 1px solid rgba(168, 192, 255, 0.3);
-        box-shadow: 0 8px 30px rgba(168, 192, 255, 0.1);
-    }
-    .metric-title { font-size: 0.9rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; display: flex; align-items: center; gap: 8px;}
-    .metric-value { font-size: 2.5rem; font-weight: 700; color: #ffffff; display: flex; align-items: baseline; gap: 5px;}
+    .metric-title { font-size: 0.9rem; color: #8b949e; text-transform: uppercase; letter-spacing: 1px; margin-bottom: 10px; }
+    .metric-value { font-size: 2.5rem; font-weight: 700; color: #ffffff; }
     .metric-unit { font-size: 1rem; font-weight: 400; color: #8b949e; }
 
-    /* Alert Boxes (Spaced and Animated) */
-    .alert-box {
-        padding: 16px 20px;
-        border-radius: 12px;
-        margin-bottom: 15px; 
-        font-size: 0.95rem;
-        line-height: 1.5;
-        animation: slideIn 0.5s cubic-bezier(0.23, 1, 0.32, 1);
-        backdrop-filter: blur(5px);
-    }
-    .alert-ai { background: rgba(66, 133, 244, 0.08); border-left: 4px solid #4285f4; border-right: 1px solid rgba(66, 133, 244, 0.2); border-top: 1px solid rgba(66, 133, 244, 0.2); border-bottom: 1px solid rgba(66, 133, 244, 0.2);}
-    .alert-ai-warn { background: rgba(217, 101, 112, 0.08); border-left: 4px solid #d96570; border-right: 1px solid rgba(217, 101, 112, 0.2); border-top: 1px solid rgba(217, 101, 112, 0.2); border-bottom: 1px solid rgba(217, 101, 112, 0.2);}
-    .alert-danger { background: rgba(255, 75, 75, 0.1); border: 1px solid rgba(255, 75, 75, 0.3); box-shadow: 0 0 15px rgba(255, 75, 75, 0.1); }
+    .alert-box { padding: 16px 20px; border-radius: 12px; margin-bottom: 15px; font-size: 0.95rem; line-height: 1.5; }
+    .alert-ai { background: rgba(66, 133, 244, 0.08); border-left: 4px solid #4285f4; }
+    .alert-ai-warn { background: rgba(217, 101, 112, 0.08); border-left: 4px solid #d96570; }
+    .alert-danger { background: rgba(255, 75, 75, 0.1); border: 1px solid rgba(255, 75, 75, 0.3); }
     .alert-safe { background: rgba(46, 160, 67, 0.05); border: 1px solid rgba(46, 160, 67, 0.2); }
 
-    /* Sidebar Styling */
     [data-testid="stSidebar"] { background-color: #0d1117 !important; border-right: 1px solid #30363d; }
-    
-    /* Modern Headers */
     h3 { font-weight: 600 !important; color: #e6edf3 !important; font-size: 1.3rem !important; margin-bottom: 1rem !important; }
-
-    /* Keyframes */
-    @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
-    @keyframes slideIn { from { opacity: 0; transform: translateX(-10px); } to { opacity: 1; transform: translateX(0); } }
     
-    /* Pulse Dot for Live Indicator */
     .pulse-dot {
         height: 10px; width: 10px; background-color: #ff4b4b; border-radius: 50%; display: inline-block; margin-right: 8px;
         box-shadow: 0 0 0 0 rgba(255, 75, 75, 0.7); animation: pulse 1.5s infinite;
@@ -120,25 +90,22 @@ model = load_yolo_model()
 
 BOBOT_SMP = {2: 1.0, 3: 0.5, 5: 2.5, 7: 2.5}
 
+# --- DATABASE CCTV JOGJAKARTA (M3U8 HLS DIRECT STREAM) ---
 DATABASE_CCTV = {
-    "NOL KM (PTZ)": "https://www.youtube.com/watch?v=V9a2vVNBx2g",
-    "SIMPANG TUGU": "https://www.youtube.com/watch?v=1v52cQ1qJBA",
-    "MARGO UTOMO - UTARA TETEG": "https://www.youtube.com/watch?v=JUI1Wx4E25Q", 
-    "SIMPANG MANDALA KRIDA (PTZ)": "https://www.youtube.com/watch?v=-c3KPR-mRcg",
-    "SIMPANG BALAIKOTA V. UTARA-BARAT": "http://youtube.com/watch?v=yicTxt9-pdE",
-    "SIMPANG AMONGROGO V. TIMUR": "https://www.youtube.com/watch?v=8LYEvmmfuZM",
-    "SIMPANG TERBAN V. TIMUR": "https://www.youtube.com/watch?v=EX47R3JdZe4",
-    "MARGO UTOMO - OPTIC TUGU": "https://www.youtube.com/watch?v=ghJg364QRkQ",
-    "SIMPANG TERBAN V. BARAT": "https://www.youtube.com/watch?v=heXWmGGHC9U",
-    "Input URL Manual...": "manual"
+    "SIMPANG KM NOL (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8streamlit run app.py",
+    "SIMPANG WIROBRAJAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_wirobrajan.stream/playlist.m3u8",
+    "SIMPANG SERANGAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_serangan.stream/playlist.m3u8",
+    "SIMPANG GONDOMANAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_gondomanan.stream/playlist.m3u8",
+    "SIMPANG PASAR GADING 2 (BARAT)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_Lampu_Merah_PasarGading2.stream/playlist.m3u8"
 }
 
+# --- KOORDINAT LOKASI JOGJAKARTA ---
 KOORDINAT_PETA = {
-    "NOL KM (PTZ)": [-7.8012, 110.3647], "SIMPANG TUGU": [-7.7829, 110.3671],
-    "MARGO UTOMO - UTARA TETEG": [-7.7891, 110.3662], "SIMPANG TERBAN V. BARAT": [-7.7785, 110.3752],
-    "SIMPANG TERBAN V. TIMUR": [-7.7789, 110.3760], "SIMPANG MANDALA KRIDA (PTZ)": [-7.7994, 110.3934],
-    "SIMPANG BALAIKOTA V. UTARA-BARAT": [-7.7971, 110.3929], "SIMPANG AMONGROGO V. TIMUR": [-7.7978, 110.3881],
-    "MARGO UTOMO - OPTIC TUGU": [-7.7845, 110.3668], "Input URL Manual...": [-7.7956, 110.3695]
+    "SIMPANG KM NOL (PTZ)": [-7.8012, 110.3647],
+    "SIMPANG WIROBRAJAN (PTZ)": [-7.8011, 110.3524],
+    "SIMPANG SERANGAN (PTZ)": [-7.8000, 110.3540],
+    "SIMPANG GONDOMANAN (PTZ)": [-7.8023, 110.3694],
+    "SIMPANG PASAR GADING 2 (BARAT)": [-7.8146, 110.3653]
 }
 
 if 'is_playing' not in st.session_state:
@@ -149,11 +116,9 @@ st.sidebar.markdown('<h3 style="margin-top: 0;">⚙️ Konfigurasi Sistem</h3>',
 pilihan_lokasi = st.sidebar.selectbox("📍 Titik Observasi", list(DATABASE_CCTV.keys()))
 
 if DATABASE_CCTV[pilihan_lokasi] == "manual":
-    youtube_url = st.sidebar.text_input("🔗 URL YouTube Live")
+    youtube_url = st.sidebar.text_input("🔗 URL M3U8 Live Stream")
 else:
     youtube_url = DATABASE_CCTV[pilihan_lokasi]
-
-resolusi = st.sidebar.selectbox("Kualitas Streaming", ["360p", "480p", "720p"], index=1)
 
 ROI_POLYGONS = {}
 status_kalibrasi = False
@@ -267,31 +232,51 @@ with tab1:
         st.markdown("<br><h3>🗺️ Peta Radar</h3>", unsafe_allow_html=True)
         lat, lon = KOORDINAT_PETA.get(pilihan_lokasi, [-7.7956, 110.3695])
         
-        # Peta Standar (Cerah & Sangat Jelas)
         m = folium.Map(location=[lat, lon], zoom_start=16, control_scale=True)
         folium.Marker(location=[lat, lon], tooltip=pilihan_lokasi, icon=folium.Icon(color="red", icon="camera")).add_to(m)
         components.html(m._repr_html_(), height=260)
+
+# --- FUNGSI PENGAMBIL TOKEN DINAMIS (ANTI KEDALUWARSA) ---
+def dapatkan_stream_aktif(master_url):
+    if master_url == "manual": return master_url
+    try:
+        headers = {'User-Agent': 'Mozilla/5.0 (Windows NT 10.0; Win64; x64)'}
+        resp = requests.get(master_url, headers=headers, timeout=5)
+        for line in resp.text.splitlines():
+            if line.endswith('.m3u8') and not line.startswith('#'):
+                return urljoin(master_url, line)
+        return master_url
+    except:
+        return master_url
 
 if st.session_state.is_playing:
     with tab1: 
         if not status_kalibrasi:
             frame_window.error(f"❌ '{pilihan_lokasi}' belum dikalibrasi.")
         elif not youtube_url:
-            frame_window.error("❌ Harap masukkan URL YouTube!")
+            frame_window.error("❌ Harap masukkan URL Streaming!")
         else:
-            options = {"STREAM_RESOLUTION": resolusi, "STREAM_PARAMS": {"nocheckcertificate": True}}
             try:
-                stream = CamGear(source=youtube_url, stream_mode=True, logging=False, **options).start()
+                # Mengambil URL chunklist aktif untuk pertama kali
+                url_aktif = dapatkan_stream_aktif(youtube_url)
+                cap = cv2.VideoCapture(url_aktif)
+                
                 frame_count = 0 
                 kendaraan_diam = [] 
                 
                 # --- PENGATURAN PARAMETER AMBANG BATAS BALANCED ---
-                BATAS_JARAK_PIKSEL = 45  # Toleransi jarak merayap pelan
-                BATAS_WAKTU_MOGOK = 30.0  # MEMBENTUK JALAN TENGAH (30 Detik)
+                BATAS_JARAK_PIKSEL = 45  
+                BATAS_WAKTU_MOGOK = 150.0  # Ubah dari 30.0 menjadi 150.0 detik (2.5 menit)
                 
                 while True:
-                    frame = stream.read()
-                    if frame is None: st.warning("⚠️ Stream terputus."); break
+                    ret, frame = cap.read()
+                    if not ret: 
+                        st.warning("⚠️ Token segmen habis. Meminta token baru ke server Dishub...")
+                        time.sleep(1)
+                        # Reconnect dengan mengambil token baru secara otomatis
+                        url_aktif = dapatkan_stream_aktif(youtube_url)
+                        cap = cv2.VideoCapture(url_aktif)
+                        continue
                         
                     frame = cv2.resize(frame, (640, 360))
                     results = model.predict(frame, classes=[2, 3, 5, 7], conf=0.15, verbose=False)
@@ -327,7 +312,6 @@ if st.session_state.is_playing:
                             else:
                                 st.markdown(f"<div class='alert-box alert-ai'><span style='color: #4285f4; font-weight: 700;'>✨ AI PRECOGNITION:</span> Kondisi arus 30 menit ke depan diprediksi stabil (~{beban_teramal} SMP).</div>", unsafe_allow_html=True)
                     
-                    # Tracker Jeda Arus (Bottleneck)
                     for det in deteksi_valid_sekarang:
                         cx, cy, x1, y1, x2, y2, cid = det
                         cocok = False
@@ -394,8 +378,7 @@ if st.session_state.is_playing:
                         )
                         grafik_window.plotly_chart(fig, use_container_width=True)
                          
-                    time.sleep(0.04) 
             except Exception as e:
                 frame_window.error(f"🚨 **Gagal memuat kamera.** Error: {e}")
             finally:
-                if 'stream' in locals(): stream.stop()
+                if 'cap' in locals(): cap.release()
