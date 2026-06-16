@@ -84,7 +84,7 @@ os.makedirs("traffic_data", exist_ok=True)
 
 @st.cache_resource
 def load_yolo_model():
-    return YOLO('yolov8n.pt')
+    return YOLO('yolov8s.pt')
 
 model = load_yolo_model()
 
