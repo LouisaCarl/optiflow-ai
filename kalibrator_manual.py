@@ -5,12 +5,18 @@ import os
 import requests
 from urllib.parse import urljoin
 
+# --- DATABASE 10 CCTV AKTIF TERFILTER ---
 DATABASE_CCTV = {
     "SIMPANG KM NOL (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_kmnol.stream/playlist.m3u8",
     "SIMPANG WIROBRAJAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_wirobrajan.stream/playlist.m3u8",
     "SIMPANG SERANGAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_serangan.stream/playlist.m3u8",
     "SIMPANG GONDOMANAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_gondomanan.stream/playlist.m3u8",
-    "SIMPANG PASAR GADING 2 (BARAT)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_Lampu_Merah_PasarGading2.stream/playlist.m3u8"
+    "SIMPANG PASAR GADING 2 (BARAT)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_Lampu_Merah_PasarGading2.stream/playlist.m3u8",
+    "SIMPANG SGM (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_simpangsgm.stream/playlist.m3u8",
+    "SIMPANG MANTRIGAWEN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_Mantrigawen_PTZ.stream/playlist.m3u8",
+    "SIMPANG BAUSASRAN (PTZ)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_S4_Bausasran.stream/playlist.m3u8",
+    "UTARA-TIMUR GARDENA (JL. URIP SUMOHARJO) V. TIMUR": "https://cctvjss.jogjakota.go.id/atcs/ATCS_Utara-Timur_Gardena_Jl_Urip%20Sumoharjo_V_Timur.stream/playlist.m3u8",
+    "SIMPANG KARANG TUNGGAL (S3 JL. KOL.SUGIYONO)": "https://cctvjss.jogjakota.go.id/atcs/ATCS_Lampu_Merah_SopMerah2.stream/playlist.m3u8"
 }
 
 titik_roi = []
@@ -87,7 +93,8 @@ def kalibrasi_cctv():
             else:
                 data_roi = {}
                 
-            if nama_lokasi not in data_roi: data_roi[nama_lokasi] = {}
+            if nama_lokasi not in data_roi: 
+                data_roi[nama_lokasi] = {}
             data_roi[nama_lokasi]["Area_Jalan"] = titik_roi
             with open('roi_config.json', 'w') as f: json.dump(data_roi, f, indent=4)
             print(f"\n✅ BERHASIL DISIMPAN!")
