@@ -19,7 +19,7 @@ from ultralytics import YOLO
 from sklearn.ensemble import RandomForestRegressor
 
 # --- KONFIGURASI HALAMAN ---
-st.set_page_config(page_title="OptiFlow TMC Dashboard", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(page_title="Dasbor Pusat Pengendalian Lalu Lintas OptiFlow", layout="wide", initial_sidebar_state="expanded")
 
 custom_css = """
 <style>
@@ -43,7 +43,6 @@ custom_css = """
     .panel-container { background-color: #111827; border-radius: 8px; padding: 15px; border: 1px solid #1e293b; height: 100%; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     .panel-title { font-family: 'Rajdhani', sans-serif; font-size: 1.2rem; font-weight: 600; color: #cbd5e1; border-bottom: 1px solid #334155; padding-bottom: 8px; margin-bottom: 15px; margin-top:0;}
     
-    /* MODIFIKASI: Layout Insight Card Horizontal */
     .insights-grid { display: flex; gap: 15px; width: 100%; }
     .insight-card { flex: 1; background: #111827; border: 1px solid #1e293b; border-radius: 8px; padding: 16px; box-shadow: 0 4px 6px rgba(0,0,0,0.3); }
     .insight-badge { color: #ffffff; padding: 3px 8px; border-radius: 4px; font-weight: bold; font-size: 0.75rem; text-transform: uppercase; display: inline-block; margin-bottom: 8px;}
@@ -60,7 +59,7 @@ custom_css = """
 st.markdown(custom_css, unsafe_allow_html=True)
 
 # ==========================================
-# STATE MANAGEMENT & PASSWORD STORAGE
+# PENGATURAN LOGISTIK & BASIS DATA
 # ==========================================
 os.makedirs("traffic_data", exist_ok=True)
 os.makedirs("temp_upload", exist_ok=True)
@@ -121,33 +120,33 @@ def train_traffic_forecaster(file_path):
     except: return None
 
 # ==========================================
-# SIDEBAR KONFIGURASI CONTROL & AUTHENTICATION
+# PANEL KONTROL SIDEBAR & AUTENTIKASI
 # ==========================================
-st.sidebar.markdown('<h2 style="color:#38bdf8; font-family:\'Rajdhani\'; margin-top:0;">TMC CONTROL</h2>', unsafe_allow_html=True)
+st.sidebar.markdown('<h2 style="color:#38bdf8; font-family:\'Rajdhani\'; margin-top:0;">KONTROL ATCS</h2>', unsafe_allow_html=True)
 
-akses_pengguna = st.sidebar.radio("🔑 User Access", ["👤 User", "👨‍💻 Admin Developer"])
+akses_pengguna = st.sidebar.radio("🔑 Hak Akses Pengguna", ["User / Publik", "Admin / Pengembang"])
 is_admin = False
 
-if akses_pengguna == "👨‍💻 Admin Developer":
-    input_pwd = st.sidebar.text_input("🛡️ Sandi Pengembang", type="password")
+if akses_pengguna == "Admin / Pengembang":
+    input_pwd = st.sidebar.text_input("🛡️ Kata Sandi Pengembang", type="password")
     if input_pwd == st.session_state.admin_password:
         is_admin = True
-        st.sidebar.success("Otorisasi Pengembang Diterima!")
+        st.sidebar.success("Otorisasi Pengembang Berhasil!")
         
         with st.sidebar.expander("⚙️ Manajemen Kredensial"):
-            pwd_baru = st.text_input("Sandi Baru", type="password")
-            konfirmasi_pwd = st.text_input("Konfirmasi Sandi", type="password")
-            if st.button("Perbarui Sandi"):
+            pwd_baru = st.text_input("Kata Sandi Baru", type="password")
+            konfirmasi_pwd = st.text_input("Konfirmasi Kata Sandi", type="password")
+            if st.button("Perbarui Kata Sandi"):
                 if pwd_baru == konfirmasi_pwd and pwd_baru != "":
                     st.session_state.admin_password = pwd_baru
-                    st.success("Sandi pengembang diperbarui!")
+                    st.success("Kata sandi berhasil diperbarui!")
                     st.rerun()
-                else: st.error("Sandi tidak cocok/kosong!")
+                else: st.error("Kata sandi tidak cocok atau kosong!")
     else:
-        if input_pwd != "": st.sidebar.error("Sandi Pengembang Salah!")
+        if input_pwd != "": st.sidebar.error("Kata Sandi Pengembang Salah!")
 
 st.sidebar.markdown("<hr style='border-color: #1e293b; margin: 10px 0;'>", unsafe_allow_html=True)
-pilihan_lokasi = st.sidebar.selectbox("📍 PILIH UNIT CCTV", list(DATABASE_CCTV.keys()))
+pilihan_lokasi = st.sidebar.selectbox("📍 PILIH UNIT CCTV SENSOR", list(DATABASE_CCTV.keys()))
 youtube_url = DATABASE_CCTV[pilihan_lokasi]
 
 if youtube_url == "upload":
@@ -170,9 +169,7 @@ elif os.path.exists('roi_config.json'):
         for nama_area, titik in database_roi[pilihan_lokasi].items(): ROI_POLYGONS[nama_area] = np.array(titik)
         if len(ROI_POLYGONS) > 0: status_kalibrasi = True
 
-# ==========================================
-# TRAINING MODEL ML (DI LUAR LOOP VIDEO)
-# ==========================================
+# Memuat Model Prediksi
 model_prediksi_lokasi = None
 semua_file = os.listdir("traffic_data")
 prefix_lokasi = f"log_{pilihan_lokasi.replace(' ', '_')}_"
@@ -185,86 +182,81 @@ if file_tersedia:
     model_prediksi_lokasi = train_traffic_forecaster(path_arsip_terbaru)
 
 if is_admin:
-    st.sidebar.markdown('<h3 style="color:#94a3b8; font-size:1rem; font-family:\'Rajdhani\';">💾 ROOT DATABASE</h3>', unsafe_allow_html=True)
+    st.sidebar.markdown('<h3 style="color:#94a3b8; font-size:1rem; font-family:\'Rajdhani\';">💾 BASIS DATA UTAMA</h3>', unsafe_allow_html=True)
     if file_tersedia:
         pilihan_tanggal_download = st.sidebar.selectbox("ARSIP TANGGAL", daftar_tanggal)
         nama_file_terpilih = f"{prefix_lokasi}{pilihan_tanggal_download}.csv"
         path_file_terpilih = os.path.join("traffic_data", nama_file_terpilih)
         with open(path_file_terpilih, "rb") as f:
-            st.sidebar.download_button("⬇️ DOWNLOAD RAW CSV", data=f, file_name=nama_file_terpilih, mime="text/csv", use_container_width=True)
+            st.sidebar.download_button("⬇️ UNDUH LOG MENTAH (CSV)", data=f, file_name=nama_file_terpilih, mime="text/csv", use_container_width=True)
 
-if 'history_data' not in st.session_state or st.sidebar.button("🔄 BOOTSTRAP ENGINE", use_container_width=True):
+if 'history_data' not in st.session_state or st.sidebar.button("🔄 INISIALISASI ULANG SISTEM", use_container_width=True):
     st.session_state.history_data = pd.DataFrame(columns=['Waktu (Detik)', 'Total Unit', 'Beban SMP'])
     st.session_state.start_time = time.time()
     st.session_state.last_log_time = time.time()
 
-if st.sidebar.button("⏯️ SWITCH STREAM STATE", use_container_width=True): 
+if st.sidebar.button("⏯️ JEDA / LANJUTKAN ALIRAN", use_container_width=True): 
     st.session_state.is_playing = not st.session_state.is_playing
     st.rerun()
 
-
 # ==========================================
-# LAYOUT UTAMA (COMMAND CENTER MASTER GRID)
+# TATA LETAK UTAMA DASBOR
 # ==========================================
-label_header = "USER" if akses_pengguna == "👤 User" else "ADMIN"
+label_header = "PENGGUNA" if akses_pengguna == "User / Publik" else "ADMINISTRATOR"
 
 st.markdown(f"""
 <div class="tmc-header">
     <div>
-        <h1 class="tmc-title">OPTIFLOW TRAFFIC MANAGEMENT</h1>
-        <p class="tmc-subtitle">NODE ACCESSIBILITY: {label_header} | CURRENT NODE: {pilihan_lokasi}</p>
+        <h1 class="tmc-title">MANAJEMEN LALU LINTAS OPTIFLOW</h1>
+        <p class="tmc-subtitle">TINGKAT AKSES: {label_header} | SIMPANG AKTIF: {pilihan_lokasi}</p>
     </div>
     <div class="live-indicator">
-        <span class="blink-dot"></span> {'MONITORING AKTIF' if st.session_state.is_playing else 'STREAM DIJEDA'}
+        <span class="blink-dot"></span> {'PEMANTAUAN AKTIF' if st.session_state.is_playing else 'PEMANTAUAN DIJEDA'}
     </div>
 </div>
 """, unsafe_allow_html=True)
 
 kpi_container = st.empty()
-
-# --- RESTRUKTURISASI TATA LETAK KOLOM ---
 col1, col2 = st.columns([7, 3])
 
 with col1:
-    st.markdown('<h3 class="panel-title">📹 LIVE COMPUTER VISION FEED</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 class="panel-title">📹 ALIRAN VISI KOMPUTER LANGSUNG</h3>', unsafe_allow_html=True)
     video_frame = st.empty()
     st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
     
-    st.markdown('<h3 class="panel-title">📈 LIVE TRAFFIC TRENDS</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 class="panel-title">📈 TREN DATA LALU LINTAS AKTUAL</h3>', unsafe_allow_html=True)
     chart_frame = st.empty()
     st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
     
-    # Insights dipindahkan ke kolom 1 di bawah grafik
-    st.markdown('<h3 class="panel-title">📑 INTERACTIVE EXECUTIVE INSIGHTS</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 class="panel-title">📑 WAWASAN EKSEKUTIF INTELLIGENT TRAFFIC</h3>', unsafe_allow_html=True)
     insights_frame = st.empty()
 
 with col2:
-    st.markdown('<h3 class="panel-title">⚠️ INCIDENT & AI ALERTS</h3>', unsafe_allow_html=True)
+    st.markdown('<h3 class="panel-title">⚠️ SISTEM PERINGATAN DINI & INSIDEN AI</h3>', unsafe_allow_html=True)
     status_frame = st.empty()
     st.markdown("<div style='margin-top:20px;'></div>", unsafe_allow_html=True)
     
-    # Map container naik ke atas menggantikan insights
     map_container = st.empty()
 
 def update_kpi_cards(vol, smp, bottleneck_count, pred_smp):
     status_class = "alert" if bottleneck_count > 0 else "success"
-    status_text = "CONGESTED" if bottleneck_count > 0 else "OPTIMIZED"
+    status_text = "PADAT TOTAL" if bottleneck_count > 0 else "LANCAR"
     html = f"""
     <div class="kpi-grid">
         <div class="kpi-card {status_class}">
-            <div class="kpi-title">Intersection Status</div>
+            <div class="kpi-title">Status Persimpangan</div>
             <div class="kpi-value">{status_text}</div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-title">Traffic Volume</div>
-            <div class="kpi-value">{vol} <span class="kpi-unit">Vehicles</span></div>
+            <div class="kpi-title">Volume Arus</div>
+            <div class="kpi-value">{vol} <span class="kpi-unit">Kendaraan</span></div>
         </div>
         <div class="kpi-card">
-            <div class="kpi-title">Road Load Index</div>
+            <div class="kpi-title">Indeks Beban Jalan</div>
             <div class="kpi-value">{smp} <span class="kpi-unit">SMP</span></div>
         </div>
         <div class="kpi-card warning">
-            <div class="kpi-title">30 Min Forecast</div>
+            <div class="kpi-title">Prediksi 30 Menit</div>
             <div class="kpi-value">{pred_smp} <span class="kpi-unit">SMP</span></div>
         </div>
     </div>
@@ -273,21 +265,24 @@ def update_kpi_cards(vol, smp, bottleneck_count, pred_smp):
 
 if pilihan_lokasi in KOORDINAT_PETA:
     with map_container.container():
-        st.markdown('<div class="panel-container"><h3 class="panel-title">📍 SPATIAL MAP MAPBOX</h3>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-container"><h3 class="panel-title">📍 PETA GEOSPASIAL SIMPANG</h3>', unsafe_allow_html=True)
         lat, lon = KOORDINAT_PETA[pilihan_lokasi]
         m = folium.Map(location=[lat, lon], zoom_start=16, tiles="CartoDB positron", control_scale=True)
         folium.Marker(location=[lat, lon], tooltip=pilihan_lokasi, icon=folium.Icon(color="blue", icon="info-sign")).add_to(m)
-        components.html(m._repr_html_(), height=250) # Disesuaikan height-nya agar pas
+        components.html(m._repr_html_(), height=250)
         st.markdown('</div>', unsafe_allow_html=True)
 else:
     with map_container.container():
-        st.markdown('<div class="panel-container"><h3 class="panel-title">📍 SPATIAL MAP</h3><p style="color:#64748b; font-size:0.9rem;">Map telemetry offline for local video analysis.</p></div>', unsafe_allow_html=True)
+        st.markdown('<div class="panel-container"><h3 class="panel-title">📍 PETA GEOSPASIAL</h3><p style="color:#64748b; font-size:0.9rem;">Telemetri spasial dinonaktifkan untuk analisis video lokal.</p></div>', unsafe_allow_html=True)
 
+# ==========================================
+# INFERENCE ENGINE BERKELANJUTAN
+# ==========================================
 if st.session_state.is_playing:
     if not status_kalibrasi:
-        video_frame.error("SYSTEM HALTED: Calibration missing for this node.")
+        video_frame.error("KEGAGALAN SISTEM: Kalibrasi titik spasial (ROI) tidak ditemukan untuk simpang ini.")
     elif not youtube_url:
-        video_frame.warning("WAITING FOR INPUT: Please upload MP4 or select active feed.")
+        video_frame.warning("MENUNGGU MASUKAN: Silakan unggah berkas MP4 atau pilih unit sensor aktif.")
     else:
         try:
             url_aktif = youtube_url if pilihan_lokasi == "UNGGAH VIDEO LOKAL (MP4)" else dapatkan_stream_aktif(youtube_url)
@@ -340,7 +335,7 @@ if st.session_state.is_playing:
                 for box in results_amb[0].boxes:
                     x1, y1, x2, y2 = map(int, box.xyxy[0])
                     cv2.rectangle(annotated_frame, (x1, y1), (x2, y2), (0, 0, 255), 1) 
-                    cv2.putText(annotated_frame, f"AMBULANCE", (x1, y1 - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+                    cv2.putText(annotated_frame, f"AMBULANS", (x1, y1 - 8), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
                 
                 waktu_sekarang = time.time()
                 
@@ -362,10 +357,10 @@ if st.session_state.is_playing:
                         jumlah_anomali += 1
                         bx1, by1, bx2, by2 = kend['box']
                         cv2.rectangle(annotated_frame, (int(bx1), int(by1)), (int(bx2), int(by2)), (0, 0, 255), 1) 
-                        cv2.putText(annotated_frame, f"BOTTLENECK", (int(bx1), int(by1)-8), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
+                        cv2.putText(annotated_frame, f"STAGNASI", (int(bx1), int(by1)-8), cv2.FONT_HERSHEY_SIMPLEX, 0.35, (0, 0, 255), 1)
 
                 if jumlah_anomali > 0 and (waktu_sekarang - st.session_state.last_toast_time) > 45:
-                    st.toast(f"🚨 ALERT: Terdeteksi {jumlah_anomali} titik kemacetan di area sensor!", icon="⚠️")
+                    st.toast(f"🚨 PERINGATAN ATCS: Terdeteksi {jumlah_anomali} titik kemacetan statis pada sensor!", icon="⚠️")
                     st.session_state.last_toast_time = waktu_sekarang
 
                 video_frame.image(cv2.cvtColor(annotated_frame, cv2.COLOR_BGR2RGB), channels="RGB", use_container_width=True)
@@ -379,42 +374,41 @@ if st.session_state.is_playing:
                 
                 alert_html = '<div class="panel-container">'
                 if jumlah_anomali > 0:
-                    alert_html += f'<div class="incident-alert"><h4 class="incident-title">CRITICAL: BOTTLENECK</h4><p class="incident-desc">{jumlah_anomali} static vehicle(s) detected blocking traffic flow.</p></div>'
+                    alert_html += f'<div class="incident-alert"><h4 class="incident-title">ALARM KRITIS: ANOMALI STAGNASI</h4><p class="incident-desc">{jumlah_anomali} kendaraan terdeteksi berhenti total menghambat arus lalu lintas.</p></div>'
                 else:
-                    alert_html += '<div style="color:#10b981; margin-bottom:15px; font-size:0.9rem;">✔️ No active physical bottlenecks.</div>'
+                    alert_html += '<div style="color:#10b981; margin-bottom:15px; font-size:0.9rem;">✔️ Aliran fisik jalan terpantau normal.</div>'
                 
                 if beban_teramal >= 12.0:
-                    alert_html += f'<div class="ai-alert"><h4 class="ai-title">AI FORECAST WARNING</h4><p class="incident-desc" style="color:#c4b5fd;">High congestion predicted in 30 mins ({beban_teramal} SMP).</p></div>'
+                    alert_html += f'<div class="ai-alert"><h4 class="ai-title">PERINGATAN PREDIKSI AI</h4><p class="incident-desc" style="color:#c4b5fd;">Kepadatan volume tinggi diprediksi terjadi dalam 30 menit ke depan ({beban_teramal} SMP).</p></div>'
                 else:
-                    alert_html += f'<div style="color:#8b5cf6; font-size:0.9rem;">✨ AI Forecast: Flow remains optimal (~{beban_teramal} SMP).</div>'
+                    alert_html += f'<div style="color:#8b5cf6; font-size:0.9rem;">✨ Prakiraan AI: Arus lalu lintas diprediksi tetap optimal (~{beban_teramal} SMP).</div>'
                 alert_html += '</div>'
                 status_frame.markdown(alert_html, unsafe_allow_html=True)
 
-                # --- INTERACTIVE INSIGHT REPORT ON APP (DIUBAH KE FORMAT HORIZONTAL GRID) ---
+                # --- PANEL INTERACTIVE INSIGHTS (BAHASA INDONESIA BAKU) ---
                 rec_signal = "SIKLUS NORMAL"
                 rec_color = "#10b981"
-                rec_desc = "Kapasitas lajur jalan raya masih mencukupi untuk menampung volume arus kendaraan saat ini."
+                rec_desc = "Kapasitas geometri jalan raya saat ini masih mencukupi untuk menampung volume arus kendaraan."
                 
                 if total_beban_smp > 15.0 or jumlah_anomali > 0:
                     rec_signal = "PERPANJANG SIKLUS HIJAU (+15 DETIK)"
                     rec_color = "#f59e0b"
-                    rec_desc = "AI mendeteksi lonjakan volume kendaraan. Rekomendasi penambahan waktu hijau untuk menguras antrean jalan."
+                    rec_desc = "Sistem mendeteksi peningkatan beban jalan. Rekomendasi perpanjangan durasi lampu hijau untuk menguras antrean."
                 if jumlah_anomali > 3:
-                    rec_signal = "DISPATCH UNIT PATROLI KEPOLISIAN"
+                    rec_signal = "DISPATCH UNIT PATROLI POLANTAS / DISHUB"
                     rec_color = "#ef4444"
-                    rec_desc = "Stagnasi kritis terdeteksi melebihi batas toleransi. Diperlukan intervensi fisik manual oleh petugas di lapangan."
+                    rec_desc = "Stagnasi kritis melampaui batas toleransi. Diperlukan intervensi fisik manual oleh petugas di lapangan."
 
-                # HTML Baru menggunakan Flexbox Grid (.insights-grid)
                 insights_html = f"""
                 <div class="insights-grid">
                     <div class="insight-card" style="border-left: 4px solid {rec_color};">
-                        <span class="insight-badge" style="background-color: {rec_color};">Traffic Intelligence Control</span>
+                        <span class="insight-badge" style="background-color: {rec_color};">Kendali Intelijen Lalu Lintas</span>
                         <h4 style="margin: 8px 0 4px 0; font-family:'Rajdhani'; font-size:1.2rem; color:{rec_color}; font-weight:700;">{rec_signal}</h4>
                         <p class="insight-text">{rec_desc}</p>
                     </div>
                     <div class="insight-card" style="border-left: 4px solid #3b82f6;">
-                        <span class="insight-badge" style="background-color: #3b82f6;">Analisis Efisiensi Ekonomi</span>
-                        <p class="insight-text" style="margin-top: 8px;">Beban saat ini senilai <b>{total_beban_smp} SMP</b> berpotensi meningkatkan delay simpang sebesar <b>{round(total_beban_smp * 1.2, 1)} detik/kendaraan</b> jika siklus lampu tidak diadaptasikan.</p>
+                        <span class="insight-badge" style="background-color: #3b82f6;">Analisis Efisiensi Makro</span>
+                        <p class="insight-text" style="margin-top: 8px;">Kerapatan arus senilai <b>{total_beban_smp} SMP</b> berpotensi meningkatkan waktu penundaan sebesar <b>{round(total_beban_smp * 1.2, 1)} detik/kendaraan</b> jika tidak dilakukan adaptasi isyarat lampu.</p>
                     </div>
                 </div>
                 """
@@ -447,6 +441,6 @@ if st.session_state.is_playing:
                     chart_frame.plotly_chart(fig, use_container_width=True) 
                      
         except Exception as e:
-            video_frame.error(f"ENGINE FAILURE: {e}")
+            video_frame.error(f"KEGAGALAN INFRASTRUKTUR ENGINE: {e}")
         finally:
             if 'cap' in locals(): cap.release()
